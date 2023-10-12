@@ -6,36 +6,52 @@ InputObject.__index = InputObject;
 
 local input_objects = {
 	hold = {},
-	button_up = {},
-	button_down = {},	
+	input_began = {},
+	input_ended = {},	
 };
 
 userinputservice.InputBegan:Connect(function(input : InputObject, gpe : boolean)
 	if gpe then return end;
 	
-	for _, button_down_object in pairs(input_objects.button_down) do 
+	for _, input_began_object in pairs(input_objects.input_began) do 
 		-- if the enum type is keycode
-		if button_down_object.input_object.EnumType == Enum.KeyCode then
-			if input.KeyCode == button_down_object.input_object then
-				task.spawn(button_down_object.buttonDown);
+		local input_enum_type = input_began_object.input_object.EnumType;
+		if input_enum_type == Enum.KeyCode then
+			if input.KeyCode == input_began_object.input_object then
+				task.spawn(input_began_object.inputBegan);
+			end
+		elseif input_enum_type == Enum.UserInputType then
+			if input.UserInputType == input_began_object.input_object then
+				task.spawn(input_began_object.inputBegan)
 			end
 		end
 	end
 	
-	for _, button_hold_object in pairs(input_objects.hold) do 
+	for _, input_hold_object in pairs(input_objects.hold) do 
 		-- if the enum type is keycode
-		if button_hold_object.input_object.EnumType == Enum.KeyCode then
-			if input.KeyCode == button_hold_object.input_object then
+		local input_enum_type = input_hold_object.input_object.EnumType;
+		if input_enum_type == Enum.KeyCode then
+			if input.KeyCode == input_hold_object.input_object then
 				task.spawn(function()
-					button_hold_object.holdStart();
-					while userinputservice:IsKeyDown(button_hold_object.input_object) 
-						and button_hold_object.holdCondition() do 
-						button_hold_object.onHold()
+					input_hold_object.holdStart();
+					while userinputservice:IsKeyDown(input_hold_object.input_object) 
+						and input_hold_object.holdCondition() do 
+						input_hold_object.onHold()
 						task.wait();
 					end
-					button_hold_object.holdEnd();
+					input_hold_object.holdEnd();
 				end)
 			end
+		elseif input_enum_type == Enum.UserInputType then
+			task.spawn(function()
+				input_hold_object.holdStart();
+				while (userinputservice:IsMouseButtonPressed(input_hold_object.input_object))
+					and input_hold_object.holdCondition() do 
+					input_hold_object.onHold()
+					task.wait();
+				end
+				input_hold_object.holdEnd();
+			end)
 		end
 	end
 end)
@@ -43,11 +59,17 @@ end)
 userinputservice.InputEnded:Connect(function(input : InputObject, gpe : boolean)
 	if gpe then return end;
 	
-	for _, button_up_object in pairs(input_objects.button_up) do 
+	for _, input_ended_object in pairs(input_objects.input_ended) do 
 		-- if the enum type is keycode
-		if button_up_object.input_object.EnumType == Enum.KeyCode then
-			if input.KeyCode == button_up_object.input_object then
-				button_up_object.buttonUp();
+		local input_enum_type = input_ended_object.input_object.EnumType;
+
+		if input_enum_type == Enum.KeyCode then
+			if input.KeyCode == input_ended_object.input_object then
+				task.spawn(input_ended_object.inputEnded);
+			end
+		elseif input_enum_type == Enum.UserInputType then
+			if input.UserInputType == input_ended_object.input_object then
+				task.spawn(input_ended_object.inputEnded);
 			end
 		end
 	end
@@ -76,20 +98,20 @@ return {
 		addInputObjectToList(input_object);
 		return input_object;
 	end,
-	newButtonUp = function(input : Enum, buttonUp : () -> any)
+	newInputBegan = function(input : Enum, inputBegan : () -> any)
 		local input_object = {}
-		input_object._type = "button_up"
+		input_object._type = "input_began"
 		input_object.input_object = input;
-		input_object.buttonUp = buttonUp;
+		input_object.inputBegan = inputBegan;
 		setmetatable(input_object, InputObject);
 		addInputObjectToList(input_object);
 		return input_object
 	end,
-	newButtonDown = function(input : Enum, buttonDown : () -> any)
+	newInputEnded = function(input : Enum, inputEnded : () -> any)
 		local input_object = {}
-		input_object._type = "button_down";
+		input_object._type = "input_ended";
 		input_object.input_object = input;
-		input_object.buttonDown = buttonDown;
+		input_object.inputEnded = inputEnded;
 		setmetatable(input_object, InputObject);
 		addInputObjectToList(input_object);
 		return input_object
